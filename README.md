@@ -11,7 +11,6 @@ nav { display:flex; justify-content:center; background:#16A085;}
 nav button { padding:10px 20px; margin:5px; border:none; color:white; background:#1ABC9C; cursor:pointer; border-radius:5px;}
 nav button:hover { background:#138D75;}
 section { padding:20px; }
-.student-list, .worksheet { background:white; padding:15px; border-radius:10px; margin-bottom:20px; box-shadow:0 0 5px rgba(0,0,0,0.1);}
 h2 { color:#16A085;}
 table { width:100%; border-collapse: collapse;}
 table, th, td { border:1px solid #ccc; }
@@ -33,16 +32,12 @@ th, td { padding:8px; text-align:center;}
   <h2>Student List / Demo Bookings</h2>
   <table id="studentTable">
     <tr><th>Name</th><th>Demo Time</th><th>Paid</th><th>SAI Student</th><th>Action</th></tr>
-    <tr><td>Ganesh</td><td>4:30-6:30 PM</td><td><input type="checkbox" checked></td><td>Yes</td><td><button onclick="deleteStudent(this)">Delete</button></td></tr>
-    <tr><td>Ravi</td><td>4:30-6:30 PM</td><td><input type="checkbox"></td><td>No</td><td><button onclick="deleteStudent(this)">Delete</button></td></tr>
   </table>
 </section>
 
 <section id="ai-log" style="display:none;">
   <h2>SAI AI Live Usage</h2>
-  <div id="aiLogs">
-    <!-- Live AI usage logs -->
-  </div>
+  <div id="aiLogs"></div>
 </section>
 
 <section id="worksheets" style="display:none;">
@@ -85,21 +80,46 @@ function showSection(sec){
   document.getElementById(sec).style.display='block';
 }
 
-// Delete student
-function deleteStudent(btn){
+// --- Dynamic Student List ---
+let students = JSON.parse(localStorage.getItem('students')||'[]');
+let studentData = students.map(n=>({name:n, demoTime:'4:30-6:30 PM', paid:false, saiStudent:'No'}));
+
+function renderStudentTable(){
+  const table = document.getElementById('studentTable');
+  table.innerHTML = "<tr><th>Name</th><th>Demo Time</th><th>Paid</th><th>SAI Student</th><th>Action</th></tr>";
+  studentData.forEach((s, idx)=>{
+    table.innerHTML += `<tr>
+      <td>${s.name}</td>
+      <td>${s.demoTime}</td>
+      <td><input type="checkbox" ${s.paid?'checked':''} onchange="studentData[${idx}].paid=this.checked"></td>
+      <td>${s.saiStudent}</td>
+      <td><button onclick="deleteStudent(${idx})">Delete</button></td>
+    </tr>`;
+  });
+}
+
+function deleteStudent(idx){
   if(confirm("Delete this student?")){
-    let row = btn.parentElement.parentElement;
-    row.parentElement.removeChild(row);
+    studentData.splice(idx,1);
+    renderStudentTable();
   }
 }
 
-// --- SAI AI Log Simulation ---
-function receiveAILog(name, question){
-  let div = document.createElement('div');
-  let time = new Date().toLocaleTimeString();
-  div.textContent = `${name} is using SAI AI at ${time}: ${question}`;
-  document.getElementById('aiLogs').prepend(div);
+renderStudentTable();
+
+// --- AI Log ---
+function updateAILogs(){
+  let aiLogs = JSON.parse(localStorage.getItem('aiLogs')||'[]');
+  const logDiv = document.getElementById('aiLogs');
+  logDiv.innerHTML = "";
+  aiLogs.slice().reverse().forEach(log=>{
+    let div = document.createElement('div');
+    div.textContent = `${log.time} - ${log.name}: ${log.question}`;
+    logDiv.appendChild(div);
+  });
 }
+
+setInterval(updateAILogs, 2000); // refresh logs every 2 sec
 
 // --- Worksheets Answers ---
 const subjectsPerGrade = {
@@ -125,13 +145,13 @@ function loadSubjects(){
   document.getElementById('answersContainer').innerHTML = "";
 }
 
-// Sample answers (expandable to 20 per subject)
+// Sample answers (same as student version)
 const sampleAnswers = {
   "Math":["1+1=2","2+3=5","5-2=3","3*2=6","10/2=5"],
-  "Physics":["Newton's first law: Inertia","Force is mass x acceleration","Gravity pulls objects","Motion is change in position","Speed=distance/time"],
-  "Chemistry":["H2O is water","Acid: releases H+","Base: releases OH-","Salt: NaCl","Chemical reaction: substance changes"],
-  "Biology":["Cell is basic unit of life","Photosynthesis: sunlight to energy","Plant parts: root, stem, leaf","Respiration: energy release","Habitat: living place"],
-  "English":["Noun: person/place/thing","Verb: action word","Sentence: I am happy","Adjective: describes noun","Opposite of big: small"],
+  "Physics":["Newton's first law: Inertia","Force = mass x acceleration","Gravity pulls objects","Motion is change in position","Speed=distance/time"],
+  "Chemistry":["H2O is water","Acid releases H+","Base releases OH-","Salt = NaCl","Chemical reaction: substance changes"],
+  "Biology":["Cell: basic unit of life","Photosynthesis: sunlight to energy","Plant parts: root, stem, leaf","Respiration: energy release","Habitat: living place"],
+  "English":["Noun: person/place/thing","Verb: action","Sentence: I am happy","Adjective: describes noun","Opposite of big: small"],
   "History":["Ashoka: Emperor","Democracy: rule by people","Empire: large kingdom","Freedom fighter: fought for freedom","Constitution: rules of country"],
   "Civics":["Citizen: member of country","Government: authority","Rights: freedoms","Duties: responsibilities","Parliament: law body"],
   "Geography":["Continents: Asia, Africa...","Oceans: Pacific, Atlantic","River: flowing water","Mountain: high land","Climate: weather pattern"],
@@ -151,11 +171,6 @@ function loadAnswers(){
     container.innerHTML = html;
   }
 }
-
-// --- Simulate AI log (for demo) ---
-setInterval(()=>{ receiveAILog('Ganesh','Asked a math question'); }, 30000);
-setInterval(()=>{ receiveAILog('Ravi','Asked a biology question'); }, 45000);
-
 </script>
 
 </body>
