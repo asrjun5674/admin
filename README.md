@@ -12,10 +12,11 @@ nav button { padding:10px 20px; margin:5px; border:none; color:white; background
 nav button:hover { background:#138D75;}
 section { padding:20px; }
 h2 { color:#16A085;}
-table { width:100%; border-collapse: collapse;}
+table { width:100%; border-collapse: collapse; margin-top:10px;}
 table, th, td { border:1px solid #ccc; }
 th, td { padding:8px; text-align:center;}
-#aiLogs { max-height:300px; overflow:auto; background:white; padding:10px; border-radius:10px; box-shadow:0 0 5px rgba(0,0,0,0.1);}
+#aiLogs, #historyContainer { max-height:300px; overflow:auto; background:white; padding:10px; border-radius:10px; box-shadow:0 0 5px rgba(0,0,0,0.1);}
+input[type=text], select { padding:5px; margin-bottom:10px;}
 </style>
 </head>
 <body>
@@ -28,18 +29,38 @@ th, td { padding:8px; text-align:center;}
   <button onclick="showSection('meet')">SAI Meet</button>
 </nav>
 
+<!-- STUDENTS SECTION -->
 <section id="students">
   <h2>Student List / Demo Bookings</h2>
+
+  <input type="text" id="searchInput" placeholder="Search student by name" onkeyup="searchStudent()" style="width:50%;">
+
   <table id="studentTable">
-    <tr><th>Name</th><th>Demo Time</th><th>Paid</th><th>SAI Student</th><th>Action</th></tr>
+    <tr>
+      <th>Name</th>
+      <th>Demo Time</th>
+      <th>Paid</th>
+      <th>SAI Student</th>
+      <th>Action</th>
+    </tr>
   </table>
+
+  <h3>View AI History</h3>
+  <label>Choose Student: 
+    <select id="historySelect" onchange="showStudentHistory()">
+      <option value="">--Select Student--</option>
+    </select>
+  </label>
+  <div id="historyContainer"></div>
 </section>
 
+<!-- AI LOG -->
 <section id="ai-log" style="display:none;">
   <h2>SAI AI Live Usage</h2>
   <div id="aiLogs"></div>
 </section>
 
+<!-- WORKSHEETS -->
 <section id="worksheets" style="display:none;">
   <h2>Worksheets Answers</h2>
 
@@ -68,19 +89,20 @@ th, td { padding:8px; text-align:center;}
   <div id="answersContainer"></div>
 </section>
 
+<!-- MEET -->
 <section id="meet" style="display:none;">
   <h2>SAI Meet</h2>
   <iframe src="https://meet.jit.si/SAI2025MEET" width="100%" height="500px" allow="camera; microphone; fullscreen"></iframe>
 </section>
 
 <script>
-let currentSection='students';
+// --- NAVIGATION ---
 function showSection(sec){
   document.querySelectorAll('section').forEach(s=>s.style.display='none');
   document.getElementById(sec).style.display='block';
 }
 
-// --- Dynamic Student List ---
+// --- STUDENT LIST ---
 let students = JSON.parse(localStorage.getItem('students')||'[]');
 let studentData = students.map(n=>({name:n, demoTime:'4:30-6:30 PM', paid:false, saiStudent:'No'}));
 
@@ -92,10 +114,16 @@ function renderStudentTable(){
       <td>${s.name}</td>
       <td>${s.demoTime}</td>
       <td><input type="checkbox" ${s.paid?'checked':''} onchange="studentData[${idx}].paid=this.checked"></td>
-      <td>${s.saiStudent}</td>
+      <td>
+        <select onchange="studentData[${idx}].saiStudent=this.value">
+          <option value="No" ${s.saiStudent==='No'?'selected':''}>No</option>
+          <option value="Yes" ${s.saiStudent==='Yes'?'selected':''}>Yes</option>
+        </select>
+      </td>
       <td><button onclick="deleteStudent(${idx})">Delete</button></td>
     </tr>`;
   });
+  populateHistorySelect();
 }
 
 function deleteStudent(idx){
@@ -105,23 +133,49 @@ function deleteStudent(idx){
   }
 }
 
-renderStudentTable();
+// --- SEARCH STUDENT ---
+function searchStudent(){
+  const input = document.getElementById('searchInput').value.toLowerCase();
+  const table = document.getElementById('studentTable');
+  const rows = table.getElementsByTagName('tr');
+  for(let i=1;i<rows.length;i++){
+    let td = rows[i].getElementsByTagName('td')[0];
+    rows[i].style.display = td.innerText.toLowerCase().includes(input)?'':'none';
+  }
+}
 
-// --- AI Log ---
+// --- AI HISTORY ---
+let aiLogs = JSON.parse(localStorage.getItem('aiLogs')||'[]');
+
 function updateAILogs(){
-  let aiLogs = JSON.parse(localStorage.getItem('aiLogs')||'[]');
+  aiLogs = JSON.parse(localStorage.getItem('aiLogs')||'[]');
   const logDiv = document.getElementById('aiLogs');
   logDiv.innerHTML = "";
   aiLogs.slice().reverse().forEach(log=>{
-    let div = document.createElement('div');
-    div.textContent = `${log.time} - ${log.name}: ${log.question}`;
-    logDiv.appendChild(div);
+    logDiv.innerHTML += `<p>${log.time} - ${log.name}: ${log.question}</p>`;
+  });
+}
+setInterval(updateAILogs, 2000);
+
+function populateHistorySelect(){
+  const sel = document.getElementById('historySelect');
+  sel.innerHTML = "<option value=''>--Select Student--</option>";
+  studentData.forEach(s=>sel.innerHTML += `<option value="${s.name}">${s.name}</option>`);
+}
+
+function showStudentHistory(){
+  const name = document.getElementById('historySelect').value;
+  const container = document.getElementById('historyContainer');
+  container.innerHTML = "";
+  if(!name) return;
+  const logs = aiLogs.filter(l=>l.name===name);
+  if(logs.length===0){ container.innerHTML = "No AI activity for this student."; return; }
+  logs.forEach(l=>{
+    container.innerHTML += `<p>${l.time}: ${l.question}</p>`;
   });
 }
 
-setInterval(updateAILogs, 2000); // refresh logs every 2 sec
-
-// --- Worksheets Answers ---
+// --- WORKSHEETS ---
 const subjectsPerGrade = {
   1: ["English","Math","Science","Social Studies","GK"],
   2: ["English","Math","Science","Social Studies","GK"],
@@ -135,42 +189,41 @@ const subjectsPerGrade = {
   10:["English","Math","Physics","Chemistry","Biology","History","Civics","Geography"]
 };
 
+const sampleAnswers = {
+  "Math":["1+1=2","2+3=5","5-2=3","3*2=6","10/2=5"],
+  "Physics":["Newton's first law: Inertia","Force=mass*acceleration","Gravity pulls objects","Motion=change in position","Speed=distance/time"],
+  "Chemistry":["H2O=water","Acid releases H+","Base releases OH-","Salt=NaCl","Chemical reaction: substance changes"],
+  "Biology":["Cell: basic unit","Photosynthesis: sunlight to energy","Plant parts: root, stem, leaf","Respiration: energy release","Habitat: living place"],
+  "English":["Noun: person/place/thing","Verb: action","Sentence: I am happy","Adjective: describes noun","Opposite of big: small"],
+  "History":["Ashoka: Emperor","Democracy: rule by people","Empire: large kingdom","Freedom fighter: fought for freedom","Constitution: rules of country"],
+  "Civics":["Citizen: member of country","Government: authority","Rights: freedoms","Duties: responsibilities","Parliament: law body"],
+  "Geography":["Continents","Oceans","River","Mountain","Climate"],
+  "Science":["Matter occupies space","Energy: ability to work","Force: push/pull","Light: visible energy","Magnet attracts metals"],
+  "Social Studies":["Society: group people","Religions: Hindu, Muslim...","Economy: money system","Culture: lifestyle","Government: rule"],
+  "GK":["President: head of state","Capital of India: New Delhi","Flag colors","National animal","National bird"]
+};
+
 function loadSubjects(){
   const grade = document.getElementById('gradeSelect').value;
   const subjectSelect = document.getElementById('subjectSelect');
   subjectSelect.innerHTML = "<option value=''>--Select Subject--</option>";
-  if(subjectsPerGrade[grade]){
-    subjectsPerGrade[grade].forEach(sub=>{ subjectSelect.innerHTML += `<option value='${sub}'>${sub}</option>`; });
-  }
-  document.getElementById('answersContainer').innerHTML = "";
+  if(subjectsPerGrade[grade]) subjectsPerGrade[grade].forEach(sub=>subjectSelect.innerHTML+=`<option value="${sub}">${sub}</option>`);
+  document.getElementById('answersContainer').innerHTML="";
 }
-
-// Sample answers (same as student version)
-const sampleAnswers = {
-  "Math":["1+1=2","2+3=5","5-2=3","3*2=6","10/2=5"],
-  "Physics":["Newton's first law: Inertia","Force = mass x acceleration","Gravity pulls objects","Motion is change in position","Speed=distance/time"],
-  "Chemistry":["H2O is water","Acid releases H+","Base releases OH-","Salt = NaCl","Chemical reaction: substance changes"],
-  "Biology":["Cell: basic unit of life","Photosynthesis: sunlight to energy","Plant parts: root, stem, leaf","Respiration: energy release","Habitat: living place"],
-  "English":["Noun: person/place/thing","Verb: action","Sentence: I am happy","Adjective: describes noun","Opposite of big: small"],
-  "History":["Ashoka: Emperor","Democracy: rule by people","Empire: large kingdom","Freedom fighter: fought for freedom","Constitution: rules of country"],
-  "Civics":["Citizen: member of country","Government: authority","Rights: freedoms","Duties: responsibilities","Parliament: law body"],
-  "Geography":["Continents: Asia, Africa...","Oceans: Pacific, Atlantic","River: flowing water","Mountain: high land","Climate: weather pattern"],
-  "Science":["Matter: occupies space","Energy: ability to work","Force: push/pull","Light: visible energy","Magnet: attracts metals"],
-  "Social Studies":["Society: group people","Religions: Hindu, Muslim...","Economy: money system","Culture: lifestyle","Government: rule"],
-  "GK":["President: head of state","Capital of India: New Delhi","Flag: saffron, white, green","National animal: Tiger","National bird: Peacock"]
-};
 
 function loadAnswers(){
   const subject = document.getElementById('subjectSelect').value;
   const container = document.getElementById('answersContainer');
-  container.innerHTML = "";
+  container.innerHTML="";
   if(sampleAnswers[subject]){
-    let html = "<ol>";
-    sampleAnswers[subject].forEach(ans=>{ html += `<li>${ans}</li>`; });
-    html += "</ol>";
-    container.innerHTML = html;
+    let html="<ol>";
+    sampleAnswers[subject].forEach(ans=>html+=`<li>${ans}</li>`);
+    html+="</ol>";
+    container.innerHTML=html;
   }
 }
+
+renderStudentTable();
 </script>
 
 </body>
