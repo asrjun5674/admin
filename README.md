@@ -5,79 +5,68 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SAI Admin Panel</title>
 <style>
-body{font-family:Arial,sans-serif;background:#f7f9f9;margin:0;}
-header{background:#1ABC9C;color:white;text-align:center;padding:15px;font-size:24px;}
-table{width:100%;border-collapse:collapse;margin-top:10px;}
-table,th,td{border:1px solid #ccc;}
-th,td{padding:8px;text-align:center;}
+body{font-family:Arial,sans-serif;margin:0;background:#eef2f3;}
+header{background:#1ABC9C;color:white;padding:15px;text-align:center;font-size:24px;}
 section{padding:20px;}
-button{cursor:pointer;padding:5px 10px;border:none;border-radius:5px;background:#1ABC9C;color:white;}
-button:hover{background:#16A085;}
+button{cursor:pointer;background:#16A085;color:white;border:none;padding:8px 15px;border-radius:5px;}
+input{padding:5px;margin:5px;}
 </style>
 </head>
 <body>
 
-<header>SAI - Admin Panel</header>
+<header>SAI Admin Panel</header>
 
 <section>
-<h2>Student Management</h2>
-<table id="studentTable">
-<tr><th>Name</th><th>Code</th><th>Paid</th><th>Action</th></tr>
-</table>
+<h2>Demo Class Requests</h2>
+<div id="demoList"></div>
 </section>
 
 <section>
-<h2>SAI AI Logs</h2>
-<div id="aiLogs" style="background:white;padding:10px;border-radius:10px;max-height:300px;overflow:auto;"></div>
+<h2>Assign Student Code</h2>
+<input type="text" id="assignName" placeholder="Enter student name">
+<input type="text" id="assignCode" placeholder="Enter unique code">
+<button onclick="assignCode()">Assign Code</button>
 </section>
 
 <section>
-<h2>SAI Meet</h2>
-<iframe src="https://meet.jit.si/SAI2025MEET" width="100%" height="400px" allow="camera; microphone; fullscreen"></iframe>
+<h2>SAI AI Usage Logs</h2>
+<div id="aiLogs"></div>
 </section>
 
 <script>
-function renderStudents(){
-  const students = JSON.parse(localStorage.getItem("students")||"[]");
-  const table = document.getElementById("studentTable");
-  table.innerHTML = "<tr><th>Name</th><th>Code</th><th>Paid</th><th>Action</th></tr>";
-  students.forEach((s,i)=>{
-    table.innerHTML += `
-      <tr>
-        <td>${s.name}</td>
-        <td>${s.code}</td>
-        <td><input type='checkbox' ${s.paid?'checked':''} onchange='togglePaid(${i},this.checked)'></td>
-        <td><button onclick='deleteStudent(${i})'>Delete</button></td>
-      </tr>`;
-  });
+// --- Load demo requests ---
+function loadDemos(){
+  let demoRequests = JSON.parse(localStorage.getItem('demoRequests')||'[]');
+  let html = "<ul>";
+  demoRequests.forEach(r=>{ html += `<li>${r.name} - ${r.date}</li>`; });
+  html += "</ul>";
+  document.getElementById('demoList').innerHTML = html;
 }
 
-function togglePaid(index, paid){
-  let students = JSON.parse(localStorage.getItem("students")||"[]");
-  students[index].paid = paid;
-  localStorage.setItem("students", JSON.stringify(students));
+// --- Assign code ---
+function assignCode(){
+  const name = document.getElementById('assignName').value.trim();
+  const code = document.getElementById('assignCode').value.trim();
+  if(!name || !code){ alert("Enter both name and code"); return; }
+
+  let studentCodes = JSON.parse(localStorage.getItem('studentCodes')||'{}');
+  studentCodes[name] = code;
+  localStorage.setItem('studentCodes', JSON.stringify(studentCodes));
+  alert(`Assigned code ${code} to ${name}`);
 }
 
-function deleteStudent(index){
-  if(confirm("Delete student?")){
-    let students = JSON.parse(localStorage.getItem("students")||"[]");
-    students.splice(index,1);
-    localStorage.setItem("students", JSON.stringify(students));
-    renderStudents();
-  }
+// --- Load AI logs ---
+function loadAILogs(){
+  let logs = JSON.parse(localStorage.getItem('aiLogs')||'[]');
+  let html = "<ul>";
+  logs.slice(-20).forEach(l=>{ html += `<li><b>${l.name}</b>: ${l.question} <i>${l.time}</i></li>`; });
+  html += "</ul>";
+  document.getElementById('aiLogs').innerHTML = html;
 }
 
-function renderLogs(){
-  const logs = JSON.parse(localStorage.getItem("aiLogs")||"[]").slice().reverse();
-  const logDiv = document.getElementById("aiLogs");
-  logDiv.innerHTML = "";
-  logs.forEach(l=>{
-    logDiv.innerHTML += `<p>${l.time} - <b>${l.name}</b>: ${l.question}</p>`;
-  });
-}
-setInterval(renderLogs,2000);
-
-renderStudents();
+loadDemos();
+loadAILogs();
+setInterval(loadAILogs,3000);
 </script>
 </body>
 </html>
