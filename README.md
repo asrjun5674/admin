@@ -29,12 +29,9 @@ input[type=text], select { padding:5px; margin-bottom:10px;}
   <button onclick="showSection('meet')">SAI Meet</button>
 </nav>
 
-<!-- STUDENTS SECTION -->
 <section id="students">
   <h2>Student List / Demo Bookings</h2>
-
   <input type="text" id="searchInput" placeholder="Search student by name" onkeyup="searchStudent()" style="width:50%;">
-
   <table id="studentTable">
     <tr>
       <th>Name</th>
@@ -54,16 +51,13 @@ input[type=text], select { padding:5px; margin-bottom:10px;}
   <div id="historyContainer"></div>
 </section>
 
-<!-- AI LOG -->
 <section id="ai-log" style="display:none;">
   <h2>SAI AI Live Usage</h2>
   <div id="aiLogs"></div>
 </section>
 
-<!-- WORKSHEETS -->
 <section id="worksheets" style="display:none;">
   <h2>Worksheets Answers</h2>
-
   <label>Choose Grade: 
     <select id="gradeSelect" onchange="loadSubjects()">
       <option value="">--Select Grade--</option>
@@ -79,17 +73,14 @@ input[type=text], select { padding:5px; margin-bottom:10px;}
       <option value="10">Grade 10</option>
     </select>
   </label>
-
   <label>Choose Subject: 
     <select id="subjectSelect" onchange="loadAnswers()">
       <option value="">--Select Subject--</option>
     </select>
   </label>
-
   <div id="answersContainer"></div>
 </section>
 
-<!-- MEET -->
 <section id="meet" style="display:none;">
   <h2>SAI Meet</h2>
   <iframe src="https://meet.jit.si/SAI2025MEET" width="100%" height="500px" allow="camera; microphone; fullscreen"></iframe>
@@ -102,10 +93,27 @@ function showSection(sec){
   document.getElementById(sec).style.display='block';
 }
 
-// --- STUDENT LIST ---
-let students = JSON.parse(localStorage.getItem('students')||'[]');
-let studentData = students.map(n=>({name:n, demoTime:'4:30-6:30 PM', paid:false, saiStudent:'No'}));
+// --- STUDENT DATA ---
+let studentData = [];
+let aiLogs = [];
 
+// Load from localStorage initially
+function updateStudentData(){
+  let students = JSON.parse(localStorage.getItem('students')||'[]');
+  let prevData = {};
+  studentData.forEach(s=>{ prevData[s.name] = s; });
+  studentData = students.map(s=>{
+    return {
+      name: s,
+      demoTime: '4:30-6:30 PM',
+      paid: prevData[s]?.paid || false,
+      saiStudent: prevData[s]?.saiStudent || 'No'
+    };
+  });
+  renderStudentTable();
+}
+
+// Render student table
 function renderStudentTable(){
   const table = document.getElementById('studentTable');
   table.innerHTML = "<tr><th>Name</th><th>Demo Time</th><th>Paid</th><th>SAI Student</th><th>Action</th></tr>";
@@ -133,7 +141,6 @@ function deleteStudent(idx){
   }
 }
 
-// --- SEARCH STUDENT ---
 function searchStudent(){
   const input = document.getElementById('searchInput').value.toLowerCase();
   const table = document.getElementById('studentTable');
@@ -144,9 +151,7 @@ function searchStudent(){
   }
 }
 
-// --- AI HISTORY ---
-let aiLogs = JSON.parse(localStorage.getItem('aiLogs')||'[]');
-
+// --- AI LOG ---
 function updateAILogs(){
   aiLogs = JSON.parse(localStorage.getItem('aiLogs')||'[]');
   const logDiv = document.getElementById('aiLogs');
@@ -155,7 +160,6 @@ function updateAILogs(){
     logDiv.innerHTML += `<p>${log.time} - ${log.name}: ${log.question}</p>`;
   });
 }
-setInterval(updateAILogs, 2000);
 
 function populateHistorySelect(){
   const sel = document.getElementById('historySelect');
@@ -223,8 +227,15 @@ function loadAnswers(){
   }
 }
 
-renderStudentTable();
-</script>
+// --- REAL-TIME LISTENER ---
+window.addEventListener('storage', (e)=>{
+  if(e.key==='students'){ updateStudentData(); }
+  if(e.key==='aiLogs'){ updateAILogs(); }
+});
 
+// --- INITIAL LOAD ---
+updateStudentData();
+updateAILogs();
+</script>
 </body>
 </html>
