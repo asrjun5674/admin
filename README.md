@@ -10,9 +10,6 @@ header{background:#1ABC9C;color:white;padding:15px;text-align:center;font-size:2
 section{padding:20px;}
 button{cursor:pointer;background:#16A085;color:white;border:none;padding:8px 15px;border-radius:5px;margin:2px;}
 input{padding:5px;margin:5px;}
-table{width:100%;border-collapse:collapse;margin-top:10px;}
-th,td{border:1px solid #ccc;padding:8px;text-align:center;}
-iframe{width:100%;height:400px;border:none;border-radius:10px;margin-top:10px;}
 </style>
 </head>
 <body>
@@ -32,8 +29,8 @@ iframe{width:100%;height:400px;border:none;border-radius:10px;margin-top:10px;}
 </section>
 
 <section>
-<h2>SAI Meet</h2>
-<iframe src="https://meet.jit.si/SAI2025MEET" allow="camera; microphone; fullscreen"></iframe>
+<h2>All Students (Manage)</h2>
+<div id="studentList"></div>
 </section>
 
 <section>
@@ -41,46 +38,40 @@ iframe{width:100%;height:400px;border:none;border-radius:10px;margin-top:10px;}
 <div id="aiLogs"></div>
 </section>
 
+<section>
+<h2>SAI Meet</h2>
+<iframe src="https://meet.jit.si/SAI2025MEET" width="100%" height="400px" allow="camera; microphone; fullscreen"></iframe>
+</section>
+
 <script>
-// --- Load Demo Requests ---
 function loadDemos(){
   let demoRequests = JSON.parse(localStorage.getItem('demoRequests')||'[]');
-  let html = "<table><tr><th>Name</th><th>Date</th><th>Code</th><th>Paid</th><th>Action</th></tr>";
-  demoRequests.forEach((r,index)=>{
-    if(r.paid===undefined) r.paid=false;
-    html += `<tr>
-      <td>${r.name}</td>
-      <td>${r.date}</td>
-      <td>${r.code || ''}</td>
-      <td>${r.paid ? '✅' : '❌'}</td>
-      <td>
-        <button onclick="togglePaid(${index})">Toggle Paid</button>
-        <button onclick="deleteStudent(${index})">Delete</button>
-      </td>
-    </tr>`;
+  let html = "<ul>";
+  demoRequests.forEach((r,i)=>{
+    html += `<li>${r.name} - ${r.date} - ${r.approved?"✅ Approved":"⏳ Pending"} 
+    <button onclick="approveDemo(${i})">Approve</button>
+    <button onclick="rejectDemo(${i})">Reject</button></li>`;
   });
-  html += "</table>";
+  html += "</ul>";
   document.getElementById('demoList').innerHTML = html;
 }
 
-// --- Toggle Paid Status ---
-function togglePaid(index){
+function approveDemo(i){
   let demoRequests = JSON.parse(localStorage.getItem('demoRequests')||'[]');
-  demoRequests[index].paid = !demoRequests[index].paid;
+  demoRequests[i].approved = true;
+  localStorage.setItem('demoRequests', JSON.stringify(demoRequests));
+  alert(demoRequests[i].name + " approved for login.");
+  loadDemos();
+  loadStudents();
+}
+
+function rejectDemo(i){
+  let demoRequests = JSON.parse(localStorage.getItem('demoRequests')||'[]');
+  demoRequests.splice(i,1);
   localStorage.setItem('demoRequests', JSON.stringify(demoRequests));
   loadDemos();
 }
 
-// --- Delete Student ---
-function deleteStudent(index){
-  if(!confirm("Are you sure you want to remove this student?")) return;
-  let demoRequests = JSON.parse(localStorage.getItem('demoRequests')||'[]');
-  demoRequests.splice(index,1);
-  localStorage.setItem('demoRequests', JSON.stringify(demoRequests));
-  loadDemos();
-}
-
-// --- Assign Code ---
 function assignCode(){
   const name = document.getElementById('assignName').value.trim();
   const code = document.getElementById('assignCode').value.trim();
@@ -88,19 +79,49 @@ function assignCode(){
 
   let studentCodes = JSON.parse(localStorage.getItem('studentCodes')||'{}');
   studentCodes[name] = code;
-
-  // Also update demoRequests with code
-  let demoRequests = JSON.parse(localStorage.getItem('demoRequests')||'[]');
-  let student = demoRequests.find(s=>s.name===name);
-  if(student) student.code = code;
-  localStorage.setItem('demoRequests', JSON.stringify(demoRequests));
-
   localStorage.setItem('studentCodes', JSON.stringify(studentCodes));
+
   alert(`Assigned code ${code} to ${name}`);
-  loadDemos();
+  loadStudents();
 }
 
-// --- Load AI Logs ---
+function loadStudents(){
+  let studentCodes = JSON.parse(localStorage.getItem('studentCodes')||'{}');
+  let demoRequests = JSON.parse(localStorage.getItem('demoRequests')||'[]');
+  let html = "<ul>";
+  Object.entries(studentCodes).forEach(([name,code])=>{
+    const student = demoRequests.find(d=>d.name===name);
+    const paid = student?.paid?"💰 Paid":"❌ Not Paid";
+    html += `<li><b>${name}</b> (${code}) - ${paid}
+    <button onclick="togglePaid('${name}')">${student?.paid?"Mark Unpaid":"Mark Paid"}</button>
+    <button onclick="deleteStudent('${name}')">Delete</button></li>`;
+  });
+  html += "</ul>";
+  document.getElementById('studentList').innerHTML = html;
+}
+
+function togglePaid(name){
+  let demoRequests = JSON.parse(localStorage.getItem('demoRequests')||'[]');
+  const student = demoRequests.find(d=>d.name===name);
+  if(student){
+    student.paid = !student.paid;
+    localStorage.setItem('demoRequests', JSON.stringify(demoRequests));
+    loadStudents();
+  }
+}
+
+function deleteStudent(name){
+  let studentCodes = JSON.parse(localStorage.getItem('studentCodes')||'{}');
+  delete studentCodes[name];
+  localStorage.setItem('studentCodes', JSON.stringify(studentCodes));
+
+  let demoRequests = JSON.parse(localStorage.getItem('demoRequests')||'[]');
+  demoRequests = demoRequests.filter(d=>d.name!==name);
+  localStorage.setItem('demoRequests', JSON.stringify(demoRequests));
+
+  loadStudents();
+}
+
 function loadAILogs(){
   let logs = JSON.parse(localStorage.getItem('aiLogs')||'[]');
   let html = "<ul>";
@@ -111,11 +132,10 @@ function loadAILogs(){
   document.getElementById('aiLogs').innerHTML = html;
 }
 
-// --- Initial Load ---
 loadDemos();
+loadStudents();
 loadAILogs();
 setInterval(loadAILogs,3000);
 </script>
-
 </body>
 </html>
